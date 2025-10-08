@@ -1,0 +1,11 @@
+# Firebase Configuration
+VITE_FIREBASE_API_KEY=AIzaSyCWbc_BC_lBW9ij_dSfBEGP8_K36odoUdU
+VITE_FIREBASE_AUTH_DOMAIN=radiologiativamandic.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=radiologiativamandic
+VITE_FIREBASE_STORAGE_BUCKET=radiologiativamandic.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=635204685199
+VITE_FIREBASE_APP_ID=1:635204685199:web:964232f3ce6e9f8da9cffa
+
+# Supabase Configuration (será removido após migração completa)
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
