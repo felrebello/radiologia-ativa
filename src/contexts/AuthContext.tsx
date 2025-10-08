@@ -4,23 +4,23 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
-  User as FirebaseUser 
+  User as FirebaseUser
 } from 'firebase/auth';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  collection, 
-  getDocs, 
-  query, 
-  orderBy 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  orderBy
 } from 'firebase/firestore';
 // Lista de emails com permissão de ADMIN vindos do .env (separados por vírgula)
 const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '')
@@ -33,12 +33,14 @@ interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: 'admin' | 'student';
 }
 
 interface RegisterData {
   name: string;
   email: string;
+  phone: string;
   password: string;
 }
 
@@ -53,7 +55,7 @@ interface AuthContextType {
   users: User[];
   login: (email: string, password: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<RegisterResult>;
-  updateUser: (id: string, data: Partial<Pick<User, 'name' | 'email'>>) => Promise<void>;
+  updateUser: (id: string, data: Partial<Pick<User, 'name' | 'email' | 'phone'>>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
@@ -99,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: firebaseUser.uid,
           name: profile.name,
           email: profile.email,
+          phone: profile.phone,
           role: effectiveRole
         });
       } else {
@@ -108,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: firebaseUser.uid,
           name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
           email: firebaseUser.email || '',
+          phone: firebaseUser.phoneNumber || '',
           role: 'student' as const,
           createdAt: new Date(),
           updatedAt: new Date()
@@ -118,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: newProfile.id,
           name: newProfile.name,
           email: newProfile.email,
+          phone: newProfile.phone,
           role: newProfile.role
         });
       }
@@ -128,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: firebaseUser.uid,
         name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuário',
         email: firebaseUser.email || '',
+        phone: firebaseUser.phoneNumber || '',
         role: (firebaseUser.email && adminEmails.includes(firebaseUser.email.toLowerCase())) ? 'admin' : 'student'
       });
     }
@@ -146,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: doc.id,
           name: profile.name,
           email: profile.email,
+          phone: profile.phone,
           role: profile.role
         });
       });
@@ -201,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: userCredential.user.uid,
           name: data.name.trim(),
           email: data.email.trim().toLowerCase(),
+          phone: data.phone.trim(),
           role: 'student' as const,
           createdAt: new Date(),
           updatedAt: new Date()
@@ -223,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateUser = async (id: string, data: Partial<Pick<User, 'name' | 'email'>>) => {
+  const updateUser = async (id: string, data: Partial<Pick<User, 'name' | 'email' | 'phone'>>) => {
     try {
       const profileRef = doc(db, 'profiles', id);
       const updateData = {

@@ -11,10 +11,12 @@ import { RegisterForm } from './components/RegisterForm';
 import { Header } from './components/Header';
 import AdminDashboard from './pages/AdminDashboard';
 import StudentDashboard from './pages/StudentDashboard';
+import { EditProfileModal } from './components/EditProfileModal';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
   const [showRegister, setShowRegister] = React.useState(false);
+  const [showEditProfile, setShowEditProfile] = React.useState(false);
 
   if (isLoading) {
     return (
@@ -33,10 +35,14 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Header onEditProfile={() => setShowEditProfile(true)} />
       <main>
         {user.role === 'admin' ? <AdminDashboard /> : <StudentDashboard />}
       </main>
+
+      {showEditProfile && user && (
+        <EditProfileModal user={user} onClose={() => setShowEditProfile(false)} />
+      )}
     </div>
   );
 }

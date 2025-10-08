@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { X, User, Save, Mail, Users, Plus, Trash2, UserMinus } from 'lucide-react';
+import { X, User, Save, Mail, Users, Plus, Trash2, UserMinus, Phone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { User as UserType } from '../types';
@@ -17,6 +17,7 @@ interface EditStudentModalProps {
 export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
   const [name, setName] = useState(student.name);
   const [email, setEmail] = useState(student.email);
+  const [phone, setPhone] = useState(student.phone || '');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'enrollments'>('info');
   
@@ -46,9 +47,10 @@ export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
     // Simular delay de atualização
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    updateUser(student.id, {
+    await updateUser(student.id, {
       name: name.trim(),
-      email: email.trim().toLowerCase()
+      email: email.trim().toLowerCase(),
+      phone: phone.trim()
     });
 
     setIsLoading(false);
@@ -57,12 +59,8 @@ export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
 
   const handleEnrollInClass = async (classId: string) => {
     setIsLoading(true);
-    
-    // Simular delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     enrollStudent(student.id, classId);
-    
     setIsLoading(false);
   };
 
@@ -70,14 +68,9 @@ export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
     if (!confirm('Tem certeza que deseja remover este aluno da turma? O histórico de presenças será mantido.')) {
       return;
     }
-
     setIsLoading(true);
-    
-    // Simular delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     unenrollStudent(student.id, classId);
-    
     setIsLoading(false);
   };
 
@@ -173,6 +166,23 @@ export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
                   />
                 </div>
               </div>
+              
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone Celular
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    placeholder="(21) 99999-9999"
+                  />
+                </div>
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <button
@@ -203,8 +213,8 @@ export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
           {/* Aba de Matrículas */}
           {activeTab === 'enrollments' && (
             <div className="space-y-6">
-              {/* Turmas Matriculadas */}
-              <div>
+              {/* ... (o restante do código da aba de matrículas continua igual) */}
+                 <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
                   Turmas Matriculadas ({enrolledClasses.length})
                 </h3>
@@ -239,8 +249,6 @@ export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
                   </div>
                 )}
               </div>
-
-              {/* Turmas Disponíveis */}
               {availableClasses.length > 0 && (
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -282,17 +290,15 @@ export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
           )}
         </div>
 
-        {/* Rodapé fixo para aba de matrículas */}
-        {activeTab === 'enrollments' && (
-          <div className="p-6 border-t border-gray-200">
-            <button
-              onClick={onClose}
-              className="w-full px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Fechar
-            </button>
-          </div>
-        )}
+        {/* Rodapé fixo */}
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-3 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+          >
+            Fechar
+          </button>
+        </div>
       </div>
     </div>
   );

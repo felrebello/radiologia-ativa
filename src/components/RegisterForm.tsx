@@ -3,8 +3,8 @@
  * Interface para novos alunos se cadastrarem no sistema
  */
 
-import React, { useState } from 'react';
-import { UserPlus, User, Lock, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { UserPlus, User, Lock, Mail, AlertCircle, ArrowLeft, Phone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 
@@ -15,6 +15,7 @@ interface RegisterFormProps {
 export function RegisterForm({ onBackToLogin }: RegisterFormProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedClassId, setSelectedClassId] = useState('');
@@ -22,6 +23,11 @@ export function RegisterForm({ onBackToLogin }: RegisterFormProps) {
   const [success, setSuccess] = useState(false);
   const { register, isLoading } = useAuth();
   const { classes, enrollStudent } = useData();
+
+  useEffect(() => {
+    // A lista de turmas agora é carregada no DataContext,
+    // então este componente irá re-renderizar quando as turmas estiverem disponíveis.
+  }, [classes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +44,11 @@ export function RegisterForm({ onBackToLogin }: RegisterFormProps) {
       return;
     }
 
+    if (!phone.trim()) {
+      setError('Telefone é obrigatório');
+      return;
+    }
+
     if (password.length < 6) {
       setError('Senha deve ter pelo menos 6 caracteres');
       return;
@@ -51,6 +62,7 @@ export function RegisterForm({ onBackToLogin }: RegisterFormProps) {
     const result = await register({
       name: name.trim(),
       email: email.trim().toLowerCase(),
+      phone: phone.trim(),
       password
     });
 
@@ -145,6 +157,24 @@ export function RegisterForm({ onBackToLogin }: RegisterFormProps) {
           </div>
 
           <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+              Telefone Celular
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                placeholder="(21) 99999-9999"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Senha
             </label>
@@ -193,7 +223,7 @@ export function RegisterForm({ onBackToLogin }: RegisterFormProps) {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
             >
               <option value="">Selecione uma turma (opcional)</option>
-              {classes.map((classItem) => (
+              {classes.map((classItem: any) => (
                 <option key={classItem.id} value={classItem.id}>
                   {classItem.name}
                 </option>
