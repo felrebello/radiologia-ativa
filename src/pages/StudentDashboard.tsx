@@ -87,6 +87,11 @@ export default function StudentDashboard() {
           {filteredLessons.map((lesson: any) => {
             const present = hasAttendance && user ? hasAttendance(user.id, lesson.id) : false;
             const dt = lesson.date;
+            console.log('🔍 DEBUG - Lesson:', lesson.title);
+            console.log('🔍 DEBUG - User ID:', user?.id);
+            console.log('🔍 DEBUG - Lesson ID:', lesson.id);
+            console.log('🔍 DEBUG - Has Attendance:', present);
+            console.log('🔍 DEBUG - hasAttendance function exists:', typeof hasAttendance === 'function');
             return (
               <div key={lesson.id} className="bg-white rounded-2xl shadow-sm p-4 border flex flex-col">
                 <div className="flex-grow">

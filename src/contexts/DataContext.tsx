@@ -124,6 +124,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const q = query(collection(db, 'attendances'), orderBy('markedAt', 'desc'));
       const querySnapshot = await getDocs(q);
       const attendanceList: Attendance[] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), markedAt: convertTimestamp(doc.data().markedAt) } as Attendance));
+      console.log('🔍 DEBUG - Loaded attendances:', attendanceList);
       setAttendances(attendanceList);
     } catch (error) { console.error('Erro ao carregar presenças:', error); }
   };
@@ -245,7 +246,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getClassLessons = (classId: string) => lessons.filter(l => l.classId === classId);
-  const hasAttendance = (studentId: string, lessonId: string) => attendances.some(a => a.studentId === studentId && a.lessonId === lessonId);
+  const hasAttendance = (studentId: string, lessonId: string) => {
+    const result = attendances.some(a => a.studentId === studentId && a.lessonId === lessonId);
+    console.log(`🔍 DEBUG - hasAttendance called: studentId=${studentId}, lessonId=${lessonId}, result=${result}`);
+    console.log('🔍 DEBUG - All attendances:', attendances);
+    return result;
+  };
   const getAttendanceCount = (lessonId: string) => attendances.filter(a => a.lessonId === lessonId).length;
 
   return (
