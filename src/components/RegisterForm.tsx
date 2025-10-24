@@ -22,7 +22,7 @@ export function RegisterForm({ onBackToLogin }: RegisterFormProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const { register, isLoading } = useAuth();
-  const { classes, enrollStudent } = useData();
+  const { classes, enrollStudent, isLoading: isLoadingData } = useData();
 
   useEffect(() => {
     // A lista de turmas agora é carregada no DataContext,
@@ -220,10 +220,13 @@ export function RegisterForm({ onBackToLogin }: RegisterFormProps) {
               id="class"
               value={selectedClassId}
               onChange={(e) => setSelectedClassId(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+              disabled={isLoadingData}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
-              <option value="">Selecione uma turma (opcional)</option>
-              {classes.map((classItem: any) => (
+              <option value="">
+                {isLoadingData ? 'Carregando turmas...' : 'Selecione uma turma (opcional)'}
+              </option>
+              {Array.isArray(classes) && classes.map((classItem: any) => (
                 <option key={classItem.id} value={classItem.id}>
                   {classItem.name}
                 </option>
