@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regras para a coleção de perfis de usuários
+    match /profiles/{userId} {
+      // Qualquer pessoa autenticada pode ler qualquer perfil
+      allow read: if request.auth != null;
+      // Apenas o próprio usuário ou um admin pode criar/atualizar seu perfil
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && (
+        request.auth.uid == userId ||
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin'
+      );
+      // Apenas admins podem deletar perfis
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Regras para a coleção de turmas (classes)
+    match /classes/{classId} {
+      // IMPORTANTE: Permitir leitura pública para que usuários não autenticados
+      // possam ver as turmas disponíveis na página de cadastro
+      allow read: if true;
+      // Apenas admins podem criar, atualizar ou deletar turmas
+      allow create, update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Regras para a coleção de aulas (lessons)
+    match /lessons/{lessonId} {
+      // Qualquer pessoa autenticada pode ler aulas
+      allow read: if request.auth != null;
+      // Apenas admins podem criar, atualizar ou deletar aulas
+      allow create, update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Regras para a coleção de presenças (attendances)
+    match /attendances/{attendanceId} {
+      // Qualquer pessoa autenticada pode ler presenças
+      allow read: if request.auth != null;
+      // Admins podem criar/deletar presenças
+      // Alunos podem marcar sua própria presença
+      allow create: if request.auth != null && (
+        request.resource.data.studentId == request.auth.uid ||
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin'
+      );
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Regras para a coleção de matrículas (enrollments)
+    match /enrollments/{enrollmentId} {
+      // Qualquer pessoa autenticada pode ler matrículas
+      allow read: if request.auth != null;
+      // Admins podem criar/deletar matrículas
+      // Alunos podem se matricular (criar enrollment para si mesmos)
+      allow create: if request.auth != null && (
+        request.resource.data.studentId == request.auth.uid ||
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin'
+      );
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
