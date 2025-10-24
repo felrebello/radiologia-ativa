@@ -144,14 +144,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     };
 
-    if (user) {
-      loadAllDataForUser();
-    } else {
-      loadClasses(); // Para formulário de registro
+    const loadRegistrationData = async () => {
+      setIsLoading(true);
+      await loadClasses(); // Para formulário de registro
       setLessons([]);
       setAttendances([]);
       setEnrollments([]);
       setIsLoading(false);
+    };
+
+    if (user) {
+      loadAllDataForUser();
+    } else {
+      loadRegistrationData();
     }
   }, [user]);
 
