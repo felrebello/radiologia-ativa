@@ -27,11 +27,13 @@ export default function AdminDashboard() {
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'classes' | 'students' | 'attendance'>('classes');
+  const [classFilter, setClassFilter] = useState<string>('all');
 
   const classes: any[] = data?.classes ?? [];
   const lessonsFlat: any[] = data?.lessons ?? [];
   const students: any[] = users.filter((u: any) => u.role === 'student') ?? [];
   const attendances: any[] = data?.attendances ?? [];
+  const enrollments: any[] = data?.enrollments ?? [];
 
   const {
     createClass, updateClass, deleteClass,
@@ -93,6 +95,15 @@ export default function AdminDashboard() {
 
   const classesSorted = [...classes].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
   const attendanceSorted = [...attendances].sort((a, b) => toDateSafe(b.markedAt).getTime() - toDateSafe(a.markedAt).getTime());
+
+  // Filter students by class
+  const filteredStudents = classFilter === 'all'
+    ? students
+    : students.filter((student: any) =>
+        enrollments.some((enrollment: any) =>
+          enrollment.studentId === student.id && enrollment.classId === classFilter
+        )
+      );
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
@@ -162,12 +173,33 @@ export default function AdminDashboard() {
       )}
       {activeTab === 'students' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-gray-100"><h3 className="text-xl font-semibold text-gray-900">Alunos Cadastrados</h3><p className="text-gray-600 mt-1 text-sm sm:text-base">Gerencie os alunos do sistema</p></div>
+          <div className="p-4 sm:p-6 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Alunos Cadastrados</h3>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">Gerencie os alunos do sistema</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="classFilter" className="text-sm font-medium text-gray-700 whitespace-nowrap">Filtrar por turma:</label>
+                <select
+                  id="classFilter"
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                  className="block w-full sm:w-auto px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="all">Todas as turmas</option>
+                  {classesSorted.map((cls: any) => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aluno</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contatos</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Status</th><th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th></tr></thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {students.map((student: any) => {
+                {filteredStudents.map((student: any) => {
                   // Format phone for WhatsApp (remove non-digits)
                   const phoneForWhatsApp = student.phone ? student.phone.replace(/\D/g, '') : '';
                   const whatsappLink = phoneForWhatsApp ? `https://wa.me/${phoneForWhatsApp}` : '';
