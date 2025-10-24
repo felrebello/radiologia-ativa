@@ -101,7 +101,13 @@ export default function StudentDashboard() {
                   </div>
                   <div className="mt-6">
                     <h3 className="text-sm font-medium text-gray-700 mb-3">Materiais</h3>
-                    {lesson.materials && lesson.materials.length > 0 ? (
+                    {!present ? (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                          <strong>Atenção:</strong> Você precisa marcar presença para acessar os materiais desta aula.
+                        </p>
+                      </div>
+                    ) : lesson.materials && lesson.materials.length > 0 ? (
                       <div className="space-y-3">
                         {lesson.materials.map((material: any) => {
                           const { url } = normalizeMaterialUrl(material.url);
