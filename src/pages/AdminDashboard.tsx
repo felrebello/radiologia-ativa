@@ -6,7 +6,9 @@ import CreateClassModal from '../components/CreateClassModal';
 import CreateLessonModal from '../components/CreateLessonModal';
 import EditLessonModal from '../components/EditLessonModal';
 import { EditStudentModal } from '../components/EditStudentModal';
-import { Plus, Edit, Trash2, Users, BookOpen, Calendar, TrendingUp, UserCheck, Mail, User, Phone, Download, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, BookOpen, Calendar, TrendingUp, UserCheck, Mail, User, Phone, Download, Filter, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 function toDateSafe(input: any): Date {
   if (!input) return new Date(NaN);
@@ -203,6 +205,107 @@ export default function AdminDashboard() {
     document.body.removeChild(link);
   };
 
+  // Export to PDF
+  const exportAttendancesToPDF = () => {
+    const dataToExport = filteredAttendances.map((att: any) => {
+      const student = students.find(s => s.id === att.studentId);
+      const lesson = lessonsFlat.find(l => l.id === att.lessonId);
+      const classItem = classes.find(c => c.id === lesson?.classId);
+      const markedAtDate = toDateSafe(att.markedAt);
+
+      return [
+        student?.name || 'Aluno removido',
+        student?.email || 'N/A',
+        classItem?.name || 'Turma removida',
+        lesson?.title || 'Aula removida',
+        lesson?.date ? toDateSafe(lesson.date).toLocaleDateString('pt-BR') : 'N/A',
+        markedAtDate.toLocaleDateString('pt-BR'),
+        markedAtDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      ];
+    });
+
+    if (dataToExport.length === 0) {
+      alert('Nenhuma presença para exportar com os filtros aplicados.');
+      return;
+    }
+
+    // Create PDF
+    const doc = new jsPDF('l', 'mm', 'a4'); // landscape orientation
+
+    // Title
+    doc.setFontSize(18);
+    doc.text('Relatório de Presenças', 14, 15);
+
+    // Subtitle with filters
+    doc.setFontSize(10);
+    let subtitle = 'Filtros aplicados: ';
+    const filters: string[] = [];
+
+    if (attendanceClassFilter !== 'all') {
+      const selectedClass = classes.find(c => c.id === attendanceClassFilter);
+      filters.push(`Turma: ${selectedClass?.name || 'N/A'}`);
+    }
+    if (attendanceLessonFilter !== 'all') {
+      const selectedLesson = lessonsFlat.find(l => l.id === attendanceLessonFilter);
+      filters.push(`Aula: ${selectedLesson?.title || 'N/A'}`);
+    }
+    if (attendanceDateStart) {
+      filters.push(`Data Inicial: ${new Date(attendanceDateStart).toLocaleDateString('pt-BR')}`);
+    }
+    if (attendanceDateEnd) {
+      filters.push(`Data Final: ${new Date(attendanceDateEnd).toLocaleDateString('pt-BR')}`);
+    }
+
+    if (filters.length > 0) {
+      subtitle += filters.join(' | ');
+    } else {
+      subtitle = 'Todas as presenças';
+    }
+
+    doc.text(subtitle, 14, 22);
+
+    // Add generation date
+    const now = new Date();
+    doc.text(`Gerado em: ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR')}`, 14, 28);
+
+    // Table
+    autoTable(doc, {
+      head: [['Aluno', 'Email', 'Turma', 'Aula', 'Data Aula', 'Data Presença', 'Hora']],
+      body: dataToExport,
+      startY: 32,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2
+      },
+      headStyles: {
+        fillColor: [37, 99, 235], // blue-600
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251] // gray-50
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(
+        `Página ${i} de ${pageCount}`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Generate filename with date
+    const filename = `relatorio-presencas-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.pdf`;
+    doc.save(filename);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
       {/* ===== ESTATÍSTICAS ===== */}
@@ -312,7 +415,7 @@ export default function AdminDashboard() {
       )}
       {activeTab === 'attendance' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Header with title and export button */}
+          {/* Header with title and export buttons */}
           <div className="p-4 sm:p-6 border-b border-gray-100">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div>
@@ -321,14 +424,24 @@ export default function AdminDashboard() {
                   Filtre e exporte relatórios de presença
                 </p>
               </div>
-              <button
-                onClick={exportAttendancesToCSV}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
-                title="Exportar relatório filtrado para CSV"
-              >
-                <Download className="w-4 h-4" />
-                Exportar CSV
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={exportAttendancesToCSV}
+                  className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  title="Exportar relatório filtrado para CSV"
+                >
+                  <Download className="w-4 h-4" />
+                  Exportar CSV
+                </button>
+                <button
+                  onClick={exportAttendancesToPDF}
+                  className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+                  title="Exportar relatório filtrado para PDF"
+                >
+                  <FileText className="w-4 h-4" />
+                  Exportar PDF
+                </button>
+              </div>
             </div>
 
             {/* Filters section */}
