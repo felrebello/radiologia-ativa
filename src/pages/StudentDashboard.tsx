@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
+import { StarRating } from '../components/StarRating';
 
 function toDateSafe(input: any): Date {
   if (!input) return new Date(NaN);
@@ -48,7 +49,17 @@ async function copyToClipboard(text: string) {
 export default function StudentDashboard() {
   const { user } = useAuth();
   const data = useData() as any;
-  const { classes, lessons: lessonsFlat, getStudentClasses, getClassLessons, hasAttendance, markAttendance } = data;
+  const {
+    classes,
+    lessons: lessonsFlat,
+    getStudentClasses,
+    getClassLessons,
+    hasAttendance,
+    markAttendance,
+    rateMaterial,
+    getMaterialRating,
+    getAverageMaterialRating
+  } = data;
 
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [showPreview, setShowPreview] = useState(false);
@@ -112,18 +123,48 @@ export default function StudentDashboard() {
                         {lesson.materials.map((material: any) => {
                           const { url } = normalizeMaterialUrl(material.url);
                           const badge = materialBadge(material);
+                          const studentRating = user ? getMaterialRating(user.id, material.id) : null;
+                          const averageRating = getAverageMaterialRating(material.id);
+
                           return (
-                            <div key={material.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-center gap-3 overflow-hidden">
-                                <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-                                  {badge === 'YouTube' ? <Youtube className="w-5 h-5 text-red-500" /> : badge === 'Google Drive' ? <HardDrive className="w-5 h-5 text-blue-600" /> : <BookOpen className="w-5 h-5" />}
+                            <div key={material.id} className="p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-3 overflow-hidden flex-1">
+                                  <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+                                    {badge === 'YouTube' ? <Youtube className="w-5 h-5 text-red-500" /> : badge === 'Google Drive' ? <HardDrive className="w-5 h-5 text-blue-600" /> : <BookOpen className="w-5 h-5" />}
+                                  </div>
+                                  <div className="overflow-hidden flex-1">
+                                    <p className="font-medium text-gray-900 truncate">{material.name}</p>
+                                    <span className="text-xs text-gray-500">{badge}</span>
+                                  </div>
                                 </div>
-                                <div className="overflow-hidden"><p className="font-medium text-gray-900 truncate">{material.name}</p><span className="text-xs text-gray-500">{badge}</span></div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  {badge === 'YouTube' && <button onClick={() => { setPreviewUrl(url); setShowPreview(true); }} className="p-2 rounded-lg hover:bg-blue-50 text-blue-600"><Play className="w-4 h-4" /></button>}
+                                  <a href={url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-blue-50 text-blue-600"><ExternalLink className="w-4 h-4" /></a>
+                                  <button onClick={() => copyToClipboard(url)} className="p-2 rounded-lg hover:bg-gray-200 text-gray-600"><Clipboard className="w-4 h-4" /></button>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                {badge === 'YouTube' && <button onClick={() => { setPreviewUrl(url); setShowPreview(true); }} className="p-2 rounded-lg hover:bg-blue-50 text-blue-600"><Play className="w-4 h-4" /></button>}
-                                <a href={url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-blue-50 text-blue-600"><ExternalLink className="w-4 h-4" /></a>
-                                <button onClick={() => copyToClipboard(url)} className="p-2 rounded-lg hover:bg-gray-200 text-gray-600"><Clipboard className="w-4 h-4" /></button>
+                              <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-200">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-600">Sua avaliação:</span>
+                                  <StarRating
+                                    rating={studentRating}
+                                    onRate={(rating) => user && rateMaterial(user.id, material.id, lesson.id, rating)}
+                                    size="sm"
+                                  />
+                                </div>
+                                {averageRating.count > 0 && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-600">Média:</span>
+                                    <StarRating
+                                      rating={averageRating.average}
+                                      readonly
+                                      showCount
+                                      count={averageRating.count}
+                                      size="sm"
+                                    />
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );

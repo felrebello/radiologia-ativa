@@ -63,5 +63,23 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
     }
+
+    // Regras para a coleção de avaliações de materiais (materialRatings)
+    match /materialRatings/{ratingId} {
+      // Qualquer pessoa autenticada pode ler avaliações
+      allow read: if request.auth != null;
+      // Alunos podem criar/atualizar suas próprias avaliações
+      allow create: if request.auth != null &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5;
+      allow update: if request.auth != null &&
+        resource.data.studentId == request.auth.uid &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5;
+      // Apenas admins podem deletar avaliações
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
   }
 }
