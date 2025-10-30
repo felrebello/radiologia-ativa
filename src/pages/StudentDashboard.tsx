@@ -146,7 +146,7 @@ export default function StudentDashboard() {
                               </div>
                               <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-200">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-600">Sua avaliação:</span>
+                                  <span className="text-xs text-gray-600">Avalie a aula ou material:</span>
                                   <StarRating
                                     rating={studentRating}
                                     onRate={(rating) => user && rateMaterial(user.id, material.id, lesson.id, rating)}
