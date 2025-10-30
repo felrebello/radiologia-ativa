@@ -6,7 +6,7 @@ import CreateClassModal from '../components/CreateClassModal';
 import CreateLessonModal from '../components/CreateLessonModal';
 import EditLessonModal from '../components/EditLessonModal';
 import { EditStudentModal } from '../components/EditStudentModal';
-import { Plus, Edit, Trash2, Users, BookOpen, Calendar, TrendingUp, UserCheck, Mail, User, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, BookOpen, Calendar, TrendingUp, UserCheck, Mail, User, Phone, Download, Filter } from 'lucide-react';
 
 function toDateSafe(input: any): Date {
   if (!input) return new Date(NaN);
@@ -28,6 +28,12 @@ export default function AdminDashboard() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'classes' | 'students' | 'attendance'>('classes');
   const [classFilter, setClassFilter] = useState<string>('all');
+
+  // Filtros para relatório de presença
+  const [attendanceClassFilter, setAttendanceClassFilter] = useState<string>('all');
+  const [attendanceLessonFilter, setAttendanceLessonFilter] = useState<string>('all');
+  const [attendanceDateStart, setAttendanceDateStart] = useState<string>('');
+  const [attendanceDateEnd, setAttendanceDateEnd] = useState<string>('');
 
   const classes: any[] = data?.classes ?? [];
   const lessonsFlat: any[] = data?.lessons ?? [];
@@ -104,6 +110,98 @@ export default function AdminDashboard() {
           enrollment.studentId === student.id && enrollment.classId === classFilter
         )
       );
+
+  // Filter attendances based on filters
+  const getFilteredAttendances = () => {
+    let filtered = [...attendances];
+
+    // Filter by class
+    if (attendanceClassFilter !== 'all') {
+      const classLessonsIds = lessonsFlat
+        .filter(l => l.classId === attendanceClassFilter)
+        .map(l => l.id);
+      filtered = filtered.filter(att => classLessonsIds.includes(att.lessonId));
+    }
+
+    // Filter by lesson
+    if (attendanceLessonFilter !== 'all') {
+      filtered = filtered.filter(att => att.lessonId === attendanceLessonFilter);
+    }
+
+    // Filter by date range
+    if (attendanceDateStart) {
+      const startDate = new Date(attendanceDateStart);
+      startDate.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(att => toDateSafe(att.markedAt) >= startDate);
+    }
+    if (attendanceDateEnd) {
+      const endDate = new Date(attendanceDateEnd);
+      endDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(att => toDateSafe(att.markedAt) <= endDate);
+    }
+
+    return filtered;
+  };
+
+  const filteredAttendances = getFilteredAttendances();
+
+  // Get lessons filtered by selected class for the lesson dropdown
+  const availableLessons = attendanceClassFilter !== 'all'
+    ? lessonsFlat.filter(l => l.classId === attendanceClassFilter)
+    : lessonsFlat;
+
+  // Export to CSV
+  const exportAttendancesToCSV = () => {
+    const dataToExport = filteredAttendances.map((att: any) => {
+      const student = students.find(s => s.id === att.studentId);
+      const lesson = lessonsFlat.find(l => l.id === att.lessonId);
+      const classItem = classes.find(c => c.id === lesson?.classId);
+      const markedAtDate = toDateSafe(att.markedAt);
+
+      return {
+        'Nome do Aluno': student?.name || 'Aluno removido',
+        'Email': student?.email || 'N/A',
+        'Turma': classItem?.name || 'Turma removida',
+        'Aula': lesson?.title || 'Aula removida',
+        'Data da Aula': lesson?.date ? toDateSafe(lesson.date).toLocaleDateString('pt-BR') : 'N/A',
+        'Data da Presença': markedAtDate.toLocaleDateString('pt-BR'),
+        'Hora da Presença': markedAtDate.toLocaleTimeString('pt-BR')
+      };
+    });
+
+    if (dataToExport.length === 0) {
+      alert('Nenhuma presença para exportar com os filtros aplicados.');
+      return;
+    }
+
+    // Create CSV content
+    const headers = Object.keys(dataToExport[0]);
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(row =>
+        headers.map(header => {
+          const value = row[header as keyof typeof row];
+          // Escape commas and quotes in values
+          return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(',')
+      )
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+
+    // Generate filename with date
+    const now = new Date();
+    const filename = `relatorio-presencas-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.csv`;
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
@@ -213,17 +311,198 @@ export default function AdminDashboard() {
         </div>
       )}
       {activeTab === 'attendance' && (
-         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-         <div className="p-4 sm:p-6 border-b border-gray-100"><h3 className="text-xl font-semibold text-gray-900">Registro de Presenças</h3><p className="text-gray-600 mt-1 text-sm sm:text-base">Lista de todas as presenças marcadas no sistema</p></div>
-         <div className="overflow-x-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {/* Header with title and export button */}
+          <div className="p-4 sm:p-6 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Registro de Presenças</h3>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                  Filtre e exporte relatórios de presença
+                </p>
+              </div>
+              <button
+                onClick={exportAttendancesToCSV}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+                title="Exportar relatório filtrado para CSV"
+              >
+                <Download className="w-4 h-4" />
+                Exportar CSV
+              </button>
+            </div>
+
+            {/* Filters section */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Filter className="w-5 h-5 text-gray-600" />
+                <h4 className="font-medium text-gray-900">Filtros</h4>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Class filter */}
+                <div>
+                  <label htmlFor="attendanceClassFilter" className="block text-sm font-medium text-gray-700 mb-1">
+                    Turma
+                  </label>
+                  <select
+                    id="attendanceClassFilter"
+                    value={attendanceClassFilter}
+                    onChange={(e) => {
+                      setAttendanceClassFilter(e.target.value);
+                      setAttendanceLessonFilter('all'); // Reset lesson filter when class changes
+                    }}
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="all">Todas as turmas</option>
+                    {classesSorted.map((cls: any) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Lesson filter */}
+                <div>
+                  <label htmlFor="attendanceLessonFilter" className="block text-sm font-medium text-gray-700 mb-1">
+                    Aula
+                  </label>
+                  <select
+                    id="attendanceLessonFilter"
+                    value={attendanceLessonFilter}
+                    onChange={(e) => setAttendanceLessonFilter(e.target.value)}
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    disabled={attendanceClassFilter === 'all'}
+                  >
+                    <option value="all">Todas as aulas</option>
+                    {availableLessons.map((lesson: any) => (
+                      <option key={lesson.id} value={lesson.id}>
+                        {lesson.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date start filter */}
+                <div>
+                  <label htmlFor="attendanceDateStart" className="block text-sm font-medium text-gray-700 mb-1">
+                    Data Inicial
+                  </label>
+                  <input
+                    type="date"
+                    id="attendanceDateStart"
+                    value={attendanceDateStart}
+                    onChange={(e) => setAttendanceDateStart(e.target.value)}
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
+                </div>
+
+                {/* Date end filter */}
+                <div>
+                  <label htmlFor="attendanceDateEnd" className="block text-sm font-medium text-gray-700 mb-1">
+                    Data Final
+                  </label>
+                  <input
+                    type="date"
+                    id="attendanceDateEnd"
+                    value={attendanceDateEnd}
+                    onChange={(e) => setAttendanceDateEnd(e.target.value)}
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Clear filters button */}
+              {(attendanceClassFilter !== 'all' || attendanceLessonFilter !== 'all' || attendanceDateStart || attendanceDateEnd) && (
+                <button
+                  onClick={() => {
+                    setAttendanceClassFilter('all');
+                    setAttendanceLessonFilter('all');
+                    setAttendanceDateStart('');
+                    setAttendanceDateEnd('');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  Limpar filtros
+                </button>
+              )}
+
+              {/* Results count */}
+              <div className="text-sm text-gray-600">
+                Mostrando <span className="font-semibold">{filteredAttendances.length}</span> de{' '}
+                <span className="font-semibold">{attendances.length}</span> presenças
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aluno</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aula</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Data</th><th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th></tr></thead>
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aluno
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Turma
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aula
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                    Data
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {attendanceSorted.map((att: any) => {
-                  const student = students.find(s => s.id === att.studentId);
-                  const lesson = lessonsFlat.find(l => l.id === att.lessonId);
-                  return (<tr key={att.id}><td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student?.name || 'Aluno removido'}</td><td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">{lesson?.title || 'Aula removida'}</td><td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 hidden sm:table-cell">{toDateSafe(att.markedAt).toLocaleString()}</td><td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium"><button onClick={() => { if (unmarkAttendance && confirm('Desmarcar presença?')) { unmarkAttendance(att.studentId, att.lessonId); } }} className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50" title="Desmarcar presença"><Trash2 className="w-4 h-4" /></button></td></tr>);
-                })}
+                {filteredAttendances.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      Nenhuma presença encontrada com os filtros aplicados
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAttendances
+                    .sort((a, b) => toDateSafe(b.markedAt).getTime() - toDateSafe(a.markedAt).getTime())
+                    .map((att: any) => {
+                      const student = students.find(s => s.id === att.studentId);
+                      const lesson = lessonsFlat.find(l => l.id === att.lessonId);
+                      const classItem = classes.find(c => c.id === lesson?.classId);
+
+                      return (
+                        <tr key={att.id}>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {student?.name || 'Aluno removido'}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {classItem?.name || 'Turma removida'}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {lesson?.title || 'Aula removida'}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 hidden sm:table-cell">
+                            {toDateSafe(att.markedAt).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => {
+                                if (unmarkAttendance && confirm('Desmarcar presença?')) {
+                                  unmarkAttendance(att.studentId, att.lessonId);
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50"
+                              title="Desmarcar presença"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                )}
               </tbody>
             </table>
           </div>
