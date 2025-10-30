@@ -6,7 +6,8 @@ import CreateClassModal from '../components/CreateClassModal';
 import CreateLessonModal from '../components/CreateLessonModal';
 import EditLessonModal from '../components/EditLessonModal';
 import { EditStudentModal } from '../components/EditStudentModal';
-import { Plus, Edit, Trash2, Users, BookOpen, Calendar, TrendingUp, UserCheck, Mail, User, Phone, Download, Filter, FileText } from 'lucide-react';
+import { StarRating } from '../components/StarRating';
+import { Plus, Edit, Trash2, Users, BookOpen, Calendar, TrendingUp, UserCheck, Mail, User, Phone, Download, Filter, FileText, Star } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -28,7 +29,7 @@ export default function AdminDashboard() {
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'classes' | 'students' | 'attendance'>('classes');
+  const [activeTab, setActiveTab] = useState<'classes' | 'students' | 'attendance' | 'ratings'>('classes');
   const [classFilter, setClassFilter] = useState<string>('all');
 
   // Filtros para relatório de presença
@@ -37,17 +38,23 @@ export default function AdminDashboard() {
   const [attendanceDateStart, setAttendanceDateStart] = useState<string>('');
   const [attendanceDateEnd, setAttendanceDateEnd] = useState<string>('');
 
+  // Filtros para avaliações
+  const [ratingsClassFilter, setRatingsClassFilter] = useState<string>('all');
+  const [ratingsLessonFilter, setRatingsLessonFilter] = useState<string>('all');
+
   const classes: any[] = data?.classes ?? [];
   const lessonsFlat: any[] = data?.lessons ?? [];
   const students: any[] = users.filter((u: any) => u.role === 'student') ?? [];
   const attendances: any[] = data?.attendances ?? [];
   const enrollments: any[] = data?.enrollments ?? [];
+  const materialRatings: any[] = data?.materialRatings ?? [];
 
   const {
     createClass, updateClass, deleteClass,
     createLesson, updateLesson, deleteLesson,
     updateUser: updateStudent, deleteUser: deleteStudent,
-    unmarkAttendance, getClassLessons
+    unmarkAttendance, getClassLessons,
+    getAverageMaterialRating
   } = data;
 
   const totalClasses = classes.length;
@@ -316,7 +323,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200"><div className="flex items-center gap-4"><div className="bg-orange-100 rounded-lg p-3"><TrendingUp className="w-6 h-6 text-orange-600" /></div><div><p className="text-sm text-gray-600">Presenças Marcadas</p><p className="text-2xl font-bold text-gray-900">{totalAttendances}</p></div></div></div>
       </div>
       {/* ===== ABAS ===== */}
-      <div className="mb-8"><div className="border-b border-gray-200"><nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto"><button type="button" onClick={() => setActiveTab('classes')} className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'classes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><div className="flex items-center gap-2"><Users className="w-4 h-4" />Turmas e Aulas</div></button><button type="button" onClick={() => setActiveTab('students')} className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'students' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><div className="flex items-center gap-2"><UserCheck className="w-4 h-4" />Gerenciar Alunos</div></button><button type="button" onClick={() => setActiveTab('attendance')} className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'attendance' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Presenças</div></button></nav></div></div>
+      <div className="mb-8"><div className="border-b border-gray-200"><nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto"><button type="button" onClick={() => setActiveTab('classes')} className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'classes' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><div className="flex items-center gap-2"><Users className="w-4 h-4" />Turmas e Aulas</div></button><button type="button" onClick={() => setActiveTab('students')} className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'students' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><div className="flex items-center gap-2"><UserCheck className="w-4 h-4" />Gerenciar Alunos</div></button><button type="button" onClick={() => setActiveTab('attendance')} className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'attendance' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><div className="flex items-center gap-2"><Calendar className="w-4 h-4" />Presenças</div></button><button type="button" onClick={() => setActiveTab('ratings')} className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'ratings' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}><div className="flex items-center gap-2"><Star className="w-4 h-4" />Avaliações</div></button></nav></div></div>
       {/* ===== AÇÕES RÁPIDAS ===== */}
       {activeTab === 'classes' && <div className="flex flex-wrap gap-4 mb-8"><button type="button" onClick={() => setShowCreateClass(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"><Plus className="w-4 h-4" />Nova Turma</button><button type="button" onClick={() => { setSelectedClassId(null); setShowCreateLesson(true); }} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"><Plus className="w-4 h-4" />Nova Aula</button></div>}
       
@@ -618,6 +625,188 @@ export default function AdminDashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+      {activeTab === 'ratings' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {/* Header */}
+          <div className="p-4 sm:p-6 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Avaliações de Materiais</h3>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                  Visualize as avaliações dos materiais das aulas
+                </p>
+              </div>
+            </div>
+
+            {/* Filters section */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Filter className="w-5 h-5 text-gray-600" />
+                <h4 className="font-medium text-gray-900">Filtros</h4>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Class filter */}
+                <div>
+                  <label htmlFor="ratingsClassFilter" className="block text-sm font-medium text-gray-700 mb-1">
+                    Turma
+                  </label>
+                  <select
+                    id="ratingsClassFilter"
+                    value={ratingsClassFilter}
+                    onChange={(e) => {
+                      setRatingsClassFilter(e.target.value);
+                      setRatingsLessonFilter('all');
+                    }}
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="all">Todas as turmas</option>
+                    {classesSorted.map((cls: any) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Lesson filter */}
+                <div>
+                  <label htmlFor="ratingsLessonFilter" className="block text-sm font-medium text-gray-700 mb-1">
+                    Aula
+                  </label>
+                  <select
+                    id="ratingsLessonFilter"
+                    value={ratingsLessonFilter}
+                    onChange={(e) => setRatingsLessonFilter(e.target.value)}
+                    className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    disabled={ratingsClassFilter === 'all'}
+                  >
+                    <option value="all">Todas as aulas</option>
+                    {(ratingsClassFilter !== 'all' ? lessonsFlat.filter(l => l.classId === ratingsClassFilter) : lessonsFlat).map((lesson: any) => (
+                      <option key={lesson.id} value={lesson.id}>
+                        {lesson.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Clear filters button */}
+              {(ratingsClassFilter !== 'all' || ratingsLessonFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    setRatingsClassFilter('all');
+                    setRatingsLessonFilter('all');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Materials with ratings */}
+          <div className="p-4 sm:p-6">
+            {(() => {
+              // Get filtered lessons
+              let filteredLessons = lessonsFlat;
+              if (ratingsClassFilter !== 'all') {
+                filteredLessons = filteredLessons.filter(l => l.classId === ratingsClassFilter);
+              }
+              if (ratingsLessonFilter !== 'all') {
+                filteredLessons = filteredLessons.filter(l => l.id === ratingsLessonFilter);
+              }
+
+              // Get all materials from filtered lessons
+              const materialsWithInfo: any[] = [];
+              filteredLessons.forEach((lesson: any) => {
+                if (lesson.materials && lesson.materials.length > 0) {
+                  lesson.materials.forEach((material: any) => {
+                    const classItem = classes.find(c => c.id === lesson.classId);
+                    const avgRating = getAverageMaterialRating ? getAverageMaterialRating(material.id) : { average: 0, count: 0 };
+                    const ratings = materialRatings.filter((r: any) => r.materialId === material.id);
+
+                    materialsWithInfo.push({
+                      material,
+                      lesson,
+                      class: classItem,
+                      avgRating,
+                      ratings
+                    });
+                  });
+                }
+              });
+
+              if (materialsWithInfo.length === 0) {
+                return (
+                  <div className="text-center py-12 text-gray-500">
+                    Nenhum material encontrado com os filtros aplicados
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-6">
+                  {materialsWithInfo.map((item: any, index: number) => (
+                    <div key={`${item.material.id}-${index}`} className="border border-gray-200 rounded-lg p-4">
+                      {/* Material header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{item.material.name}</h4>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <span className="text-sm text-gray-600">
+                              Aula: {item.lesson.title}
+                            </span>
+                            <span className="text-gray-400">•</span>
+                            <span className="text-sm text-gray-600">
+                              Turma: {item.class?.name || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <StarRating
+                            rating={item.avgRating.average}
+                            readonly
+                            size="md"
+                          />
+                          <span className="text-xs text-gray-500">
+                            {item.avgRating.count} avaliação{item.avgRating.count !== 1 ? 'ões' : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Individual ratings */}
+                      {item.ratings.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Avaliações individuais:</h5>
+                          <div className="space-y-2">
+                            {item.ratings.map((rating: any) => {
+                              const student = students.find((s: any) => s.id === rating.studentId);
+                              return (
+                                <div key={rating.id} className="flex items-center justify-between bg-gray-50 rounded p-2">
+                                  <span className="text-sm text-gray-700">
+                                    {student?.name || 'Aluno removido'}
+                                  </span>
+                                  <StarRating
+                                    rating={rating.rating}
+                                    readonly
+                                    size="sm"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
