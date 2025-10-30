@@ -7,9 +7,10 @@ import CreateLessonModal from '../components/CreateLessonModal';
 import EditLessonModal from '../components/EditLessonModal';
 import { EditStudentModal } from '../components/EditStudentModal';
 import { StarRating } from '../components/StarRating';
-import { Plus, Edit, Trash2, Users, BookOpen, Calendar, TrendingUp, UserCheck, Mail, User, Phone, Download, Filter, FileText, Star } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, BookOpen, Calendar, TrendingUp, UserCheck, Mail, User, Phone, Download, Filter, FileText, Star, FileSpreadsheet } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 function toDateSafe(input: any): Date {
   if (!input) return new Date(NaN);
@@ -313,6 +314,205 @@ export default function AdminDashboard() {
     doc.save(filename);
   };
 
+  // Export Students to CSV
+  const exportStudentsToCSV = () => {
+    const dataToExport = filteredStudents.map((student: any) => {
+      // Get all classes the student is enrolled in
+      const studentClasses = enrollments
+        .filter((enrollment: any) => enrollment.studentId === student.id)
+        .map((enrollment: any) => {
+          const classItem = classes.find(c => c.id === enrollment.classId);
+          return classItem?.name || 'Turma removida';
+        })
+        .join('; ');
+
+      return {
+        'Nome': student.name || '',
+        'Email': student.email || '',
+        'Telefone': student.phone || '',
+        'Status': 'Ativo',
+        'Turmas': studentClasses || 'Nenhuma turma'
+      };
+    });
+
+    if (dataToExport.length === 0) {
+      alert('Nenhum aluno para exportar com os filtros aplicados.');
+      return;
+    }
+
+    // Create CSV content
+    const headers = Object.keys(dataToExport[0]);
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(row =>
+        headers.map(header => {
+          const value = row[header as keyof typeof row];
+          // Escape commas and quotes in values
+          return `"${String(value).replace(/"/g, '""')}"`;
+        }).join(',')
+      )
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+
+    // Generate filename with date
+    const now = new Date();
+    const filename = `alunos-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.csv`;
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Export Students to Excel
+  const exportStudentsToExcel = () => {
+    const dataToExport = filteredStudents.map((student: any) => {
+      // Get all classes the student is enrolled in
+      const studentClasses = enrollments
+        .filter((enrollment: any) => enrollment.studentId === student.id)
+        .map((enrollment: any) => {
+          const classItem = classes.find(c => c.id === enrollment.classId);
+          return classItem?.name || 'Turma removida';
+        })
+        .join('; ');
+
+      return {
+        'Nome': student.name || '',
+        'Email': student.email || '',
+        'Telefone': student.phone || '',
+        'Status': 'Ativo',
+        'Turmas': studentClasses || 'Nenhuma turma'
+      };
+    });
+
+    if (dataToExport.length === 0) {
+      alert('Nenhum aluno para exportar com os filtros aplicados.');
+      return;
+    }
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+    // Set column widths
+    const columnWidths = [
+      { wch: 30 }, // Nome
+      { wch: 35 }, // Email
+      { wch: 20 }, // Telefone
+      { wch: 10 }, // Status
+      { wch: 40 }  // Turmas
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Alunos');
+
+    // Generate filename with date
+    const now = new Date();
+    const filename = `alunos-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xlsx`;
+
+    // Save file
+    XLSX.writeFile(workbook, filename);
+  };
+
+  // Export Students to PDF
+  const exportStudentsToPDF = () => {
+    const dataToExport = filteredStudents.map((student: any) => {
+      // Get all classes the student is enrolled in
+      const studentClasses = enrollments
+        .filter((enrollment: any) => enrollment.studentId === student.id)
+        .map((enrollment: any) => {
+          const classItem = classes.find(c => c.id === enrollment.classId);
+          return classItem?.name || 'Turma removida';
+        })
+        .join(', ');
+
+      return [
+        student.name || '',
+        student.email || '',
+        student.phone || '',
+        'Ativo',
+        studentClasses || 'Nenhuma turma'
+      ];
+    });
+
+    if (dataToExport.length === 0) {
+      alert('Nenhum aluno para exportar com os filtros aplicados.');
+      return;
+    }
+
+    // Create PDF
+    const doc = new jsPDF('l', 'mm', 'a4'); // landscape orientation
+
+    // Title
+    doc.setFontSize(18);
+    doc.text('Relatório de Alunos', 14, 15);
+
+    // Subtitle with filters
+    doc.setFontSize(10);
+    let subtitle = '';
+    if (classFilter !== 'all') {
+      const selectedClass = classes.find(c => c.id === classFilter);
+      subtitle = `Turma: ${selectedClass?.name || 'N/A'}`;
+    } else {
+      subtitle = 'Todos os alunos';
+    }
+    doc.text(subtitle, 14, 22);
+
+    // Add generation date
+    const now = new Date();
+    doc.text(`Gerado em: ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR')}`, 14, 28);
+
+    // Table
+    autoTable(doc, {
+      head: [['Nome', 'Email', 'Telefone', 'Status', 'Turmas']],
+      body: dataToExport,
+      startY: 32,
+      styles: {
+        fontSize: 9,
+        cellPadding: 3
+      },
+      headStyles: {
+        fillColor: [37, 99, 235], // blue-600
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251] // gray-50
+      },
+      columnStyles: {
+        0: { cellWidth: 50 }, // Nome
+        1: { cellWidth: 60 }, // Email
+        2: { cellWidth: 35 }, // Telefone
+        3: { cellWidth: 20 }, // Status
+        4: { cellWidth: 'auto' } // Turmas
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(
+        `Página ${i} de ${pageCount}`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Generate filename with date
+    const filename = `alunos-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.pdf`;
+    doc.save(filename);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
       {/* ===== ESTATÍSTICAS ===== */}
@@ -382,10 +582,38 @@ export default function AdminDashboard() {
       {activeTab === 'students' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-gray-100">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">Alunos Cadastrados</h3>
-                <p className="text-gray-600 mt-1 text-sm sm:text-base">Gerencie os alunos do sistema</p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">Alunos Cadastrados</h3>
+                  <p className="text-gray-600 mt-1 text-sm sm:text-base">Gerencie os alunos do sistema</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={exportStudentsToCSV}
+                    className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    title="Exportar alunos filtrados para CSV"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
+                  <button
+                    onClick={exportStudentsToExcel}
+                    className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    title="Exportar alunos filtrados para Excel"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Excel
+                  </button>
+                  <button
+                    onClick={exportStudentsToPDF}
+                    className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+                    title="Exportar alunos filtrados para PDF"
+                  >
+                    <FileText className="w-4 h-4" />
+                    PDF
+                  </button>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <label htmlFor="classFilter" className="text-sm font-medium text-gray-700 whitespace-nowrap">Filtrar por turma:</label>
