@@ -51,3 +51,12 @@ export interface Enrollment {
   classId: string;
   enrolledAt: Date;
 }
+
+export interface MaterialRating {
+  id: string;
+  studentId: string;
+  materialId: string;
+  lessonId: string;
+  rating: number; // 1-5 estrelas
+  ratedAt: Date;
+}

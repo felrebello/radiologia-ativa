@@ -63,11 +63,21 @@ interface Enrollment {
   enrolledAt: Date;
 }
 
+interface MaterialRating {
+  id: string;
+  studentId: string;
+  materialId: string;
+  lessonId: string;
+  rating: number; // 1-5 estrelas
+  ratedAt: Date;
+}
+
 interface DataContextType {
   classes: Class[];
   lessons: Lesson[];
   attendances: Attendance[];
   enrollments: Enrollment[];
+  materialRatings: MaterialRating[];
   createClass: (classData: Omit<Class, 'id' | 'createdAt'>) => Promise<void>;
   updateClass: (id: string, classData: Partial<Pick<Class, 'name' | 'description'>>) => Promise<void>;
   deleteClass: (id: string) => Promise<void>;
@@ -78,6 +88,9 @@ interface DataContextType {
   unmarkAttendance: (studentId: string, lessonId: string) => Promise<void>;
   enrollStudent: (studentId: string, classId: string) => Promise<void>;
   unenrollStudent: (studentId: string, classId: string) => Promise<void>;
+  rateMaterial: (studentId: string, materialId: string, lessonId: string, rating: number) => Promise<void>;
+  getMaterialRating: (studentId: string, materialId: string) => number | null;
+  getAverageMaterialRating: (materialId: string) => { average: number; count: number };
   getStudentClasses: (studentId: string) => Class[];
   getClassLessons: (classId: string) => Lesson[];
   hasAttendance: (studentId: string, lessonId: string) => boolean;
@@ -93,6 +106,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [materialRatings, setMaterialRatings] = useState<MaterialRating[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const convertTimestamp = (timestamp: any): Date => {
@@ -137,10 +151,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (error) { console.error('Erro ao carregar matrículas:', error); }
   };
 
+  const loadRatings = async () => {
+    try {
+      const q = query(collection(db, 'materialRatings'), orderBy('ratedAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const ratingList: MaterialRating[] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), ratedAt: convertTimestamp(doc.data().ratedAt) } as MaterialRating));
+      setMaterialRatings(ratingList);
+    } catch (error) { console.error('Erro ao carregar avaliações:', error); }
+  };
+
   useEffect(() => {
     const loadAllDataForUser = async () => {
       setIsLoading(true);
-      await Promise.all([loadClasses(), loadLessons(), loadAttendances(), loadEnrollments()]);
+      await Promise.all([loadClasses(), loadLessons(), loadAttendances(), loadEnrollments(), loadRatings()]);
       setIsLoading(false);
     };
 
@@ -150,6 +173,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLessons([]);
       setAttendances([]);
       setEnrollments([]);
+      setMaterialRatings([]);
       setIsLoading(false);
     };
 
@@ -239,6 +263,56 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (error) { console.error("Erro ao desmatricular aluno:", error); }
   };
 
+  const rateMaterial = async (studentId: string, materialId: string, lessonId: string, rating: number) => {
+    try {
+      // Verifica se já existe avaliação do aluno para este material
+      const q = query(
+        collection(db, 'materialRatings'),
+        where('studentId', '==', studentId),
+        where('materialId', '==', materialId)
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        // Cria nova avaliação
+        await addDoc(collection(db, 'materialRatings'), {
+          studentId,
+          materialId,
+          lessonId,
+          rating,
+          ratedAt: serverTimestamp()
+        });
+      } else {
+        // Atualiza avaliação existente
+        const docRef = querySnapshot.docs[0].ref;
+        await updateDoc(docRef, {
+          rating,
+          ratedAt: serverTimestamp()
+        });
+      }
+
+      await loadRatings();
+    } catch (error) {
+      console.error('Erro ao avaliar material:', error);
+    }
+  };
+
+  const getMaterialRating = (studentId: string, materialId: string): number | null => {
+    const rating = materialRatings.find(r => r.studentId === studentId && r.materialId === materialId);
+    return rating ? rating.rating : null;
+  };
+
+  const getAverageMaterialRating = (materialId: string): { average: number; count: number } => {
+    const ratings = materialRatings.filter(r => r.materialId === materialId);
+    if (ratings.length === 0) return { average: 0, count: 0 };
+
+    const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
+    return {
+      average: sum / ratings.length,
+      count: ratings.length
+    };
+  };
+
   const getStudentClasses = (studentId: string) => {
     const studentEnrollments = enrollments.filter(e => e.studentId === studentId);
     return classes.filter(c => studentEnrollments.some(e => e.classId === c.id));
@@ -252,11 +326,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      classes, lessons, attendances, enrollments,
+      classes, lessons, attendances, enrollments, materialRatings,
       createClass, updateClass, deleteClass,
       createLesson, updateLesson, deleteLesson,
       markAttendance, unmarkAttendance,
       enrollStudent, unenrollStudent,
+      rateMaterial, getMaterialRating, getAverageMaterialRating,
       getStudentClasses, getClassLessons,
       hasAttendance, getAttendanceCount,
       isLoading
