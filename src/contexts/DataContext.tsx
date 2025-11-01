@@ -164,7 +164,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadAllDataForUser = async () => {
       setIsLoading(true);
-      await Promise.all([loadClasses(), loadLessons(), loadEnrollments()]);
+      await Promise.all([loadClasses(), loadLessons(), loadEnrollments(), loadAttendances(), loadRatings()]);
       setIsLoading(false);
     };
 
