@@ -15,7 +15,8 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
@@ -163,7 +164,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadAllDataForUser = async () => {
       setIsLoading(true);
-      await Promise.all([loadClasses(), loadLessons(), loadAttendances(), loadEnrollments(), loadRatings()]);
+      await Promise.all([loadClasses(), loadLessons(), loadEnrollments()]);
       setIsLoading(false);
     };
 
@@ -179,6 +180,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (user) {
       loadAllDataForUser();
+
+      // Listener em tempo real para presenças
+      const attendancesQuery = query(collection(db, 'attendances'), orderBy('markedAt', 'desc'));
+      const unsubscribeAttendances = onSnapshot(attendancesQuery, (querySnapshot) => {
+        const attendanceList: Attendance[] = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          markedAt: convertTimestamp(doc.data().markedAt)
+        } as Attendance));
+        setAttendances(attendanceList);
+      }, (error) => {
+        console.error('Erro ao escutar presenças:', error);
+      });
+
+      // Listener em tempo real para avaliações
+      const ratingsQuery = query(collection(db, 'materialRatings'), orderBy('ratedAt', 'desc'));
+      const unsubscribeRatings = onSnapshot(ratingsQuery, (querySnapshot) => {
+        const ratingList: MaterialRating[] = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          ratedAt: convertTimestamp(doc.data().ratedAt)
+        } as MaterialRating));
+        setMaterialRatings(ratingList);
+      }, (error) => {
+        console.error('Erro ao escutar avaliações:', error);
+      });
+
+      // Cleanup: desinscrever listeners quando o componente desmontar ou user mudar
+      return () => {
+        unsubscribeAttendances();
+        unsubscribeRatings();
+      };
     } else {
       loadRegistrationData();
     }
@@ -232,7 +265,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!studentId || !lessonId || hasAttendance(studentId, lessonId)) return;
       await addDoc(collection(db, 'attendances'), { studentId, lessonId, markedAt: serverTimestamp() });
-      await loadAttendances();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao marcar presença:", error); }
   };
 
@@ -242,7 +275,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const querySnapshot = await getDocs(q);
       const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
       await Promise.all(deletePromises);
-      await loadAttendances();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao desmarcar presença:", error); }
   };
 
@@ -291,7 +324,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      await loadRatings();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) {
       console.error('Erro ao avaliar material:', error);
     }
