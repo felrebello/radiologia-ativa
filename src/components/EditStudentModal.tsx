@@ -26,8 +26,16 @@ export function EditStudentModal({ student, onClose }: EditStudentModalProps) {
 
   // Turmas em que o aluno está matriculado
   const studentEnrollments = enrollments.filter(e => e.studentId === student.id);
+
+  // DEBUG
+  console.log('🔍 EditStudentModal - Student ID:', student.id);
+  console.log('🔍 EditStudentModal - Total enrollments:', enrollments.length);
+  console.log('🔍 EditStudentModal - Student enrollments:', studentEnrollments);
+  console.log('🔍 EditStudentModal - Student enrollments count:', studentEnrollments.length);
+
   const enrolledClasses = studentEnrollments.map(enrollment => {
     const classItem = classes.find(c => c.id === enrollment.classId);
+    console.log('🔍 EditStudentModal - Enrollment:', enrollment.id, 'Class found:', classItem?.name);
     return {
       ...enrollment,
       class: classItem
