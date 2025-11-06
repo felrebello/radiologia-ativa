@@ -181,6 +181,46 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       loadAllDataForUser();
 
+      // Listener em tempo real para turmas
+      const classesQuery = query(collection(db, 'classes'), orderBy('createdAt', 'desc'));
+      const unsubscribeClasses = onSnapshot(classesQuery, (querySnapshot) => {
+        const classList: Class[] = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: convertTimestamp(doc.data().createdAt)
+        } as Class));
+        setClasses(classList);
+      }, (error) => {
+        console.error('Erro ao escutar turmas:', error);
+      });
+
+      // Listener em tempo real para aulas
+      const lessonsQuery = query(collection(db, 'lessons'), orderBy('date', 'desc'));
+      const unsubscribeLessons = onSnapshot(lessonsQuery, (querySnapshot) => {
+        const lessonList: Lesson[] = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          date: convertTimestamp(doc.data().date),
+          createdAt: convertTimestamp(doc.data().createdAt)
+        } as Lesson));
+        setLessons(lessonList);
+      }, (error) => {
+        console.error('Erro ao escutar aulas:', error);
+      });
+
+      // Listener em tempo real para matrículas
+      const enrollmentsQuery = query(collection(db, 'enrollments'), orderBy('enrolledAt', 'desc'));
+      const unsubscribeEnrollments = onSnapshot(enrollmentsQuery, (querySnapshot) => {
+        const enrollmentList: Enrollment[] = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          enrolledAt: convertTimestamp(doc.data().enrolledAt)
+        } as Enrollment));
+        setEnrollments(enrollmentList);
+      }, (error) => {
+        console.error('Erro ao escutar matrículas:', error);
+      });
+
       // Listener em tempo real para presenças
       const attendancesQuery = query(collection(db, 'attendances'), orderBy('markedAt', 'desc'));
       const unsubscribeAttendances = onSnapshot(attendancesQuery, (querySnapshot) => {
@@ -209,6 +249,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // Cleanup: desinscrever listeners quando o componente desmontar ou user mudar
       return () => {
+        unsubscribeClasses();
+        unsubscribeLessons();
+        unsubscribeEnrollments();
         unsubscribeAttendances();
         unsubscribeRatings();
       };
@@ -220,28 +263,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const createClass = async (classData: Omit<Class, 'id' | 'createdAt'>) => {
     try {
       await addDoc(collection(db, 'classes'), { ...classData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      await loadClasses();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao criar turma:", error); }
   };
 
   const updateClass = async (id: string, classData: Partial<Pick<Class, 'name' | 'description'>>) => {
     try {
       await updateDoc(doc(db, 'classes', id), { ...classData, updatedAt: serverTimestamp() });
-      await loadClasses();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao atualizar turma:", error); }
   };
 
   const deleteClass = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'classes', id));
-      await Promise.all([loadClasses(), loadLessons(), loadAttendances(), loadEnrollments()]);
+      // Os listeners em tempo real irão atualizar automaticamente
     } catch (error) { console.error("Erro ao apagar turma:", error); }
   };
 
   const createLesson = async (lessonData: Omit<Lesson, 'id' | 'createdAt'>) => {
     try {
       await addDoc(collection(db, 'lessons'), { ...lessonData, date: Timestamp.fromDate(lessonData.date), createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      await loadLessons();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao criar aula:", error); }
   };
 
@@ -250,14 +293,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const updateData: any = { ...lessonData, updatedAt: serverTimestamp() };
       if (lessonData.date) updateData.date = Timestamp.fromDate(lessonData.date);
       await updateDoc(doc(db, 'lessons', id), updateData);
-      await loadLessons();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao atualizar aula:", error); }
   };
 
   const deleteLesson = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'lessons', id));
-      await loadLessons();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao apagar aula:", error); }
   };
 
@@ -282,7 +325,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const enrollStudent = async (studentId: string, classId: string) => {
     try {
       await addDoc(collection(db, 'enrollments'), { studentId, classId, enrolledAt: serverTimestamp() });
-      await loadEnrollments();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao matricular aluno:", error); }
   };
 
@@ -292,7 +335,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const querySnapshot = await getDocs(q);
       const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
       await Promise.all(deletePromises);
-      await loadEnrollments();
+      // O listener em tempo real irá atualizar automaticamente
     } catch (error) { console.error("Erro ao desmatricular aluno:", error); }
   };
 
