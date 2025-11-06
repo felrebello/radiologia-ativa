@@ -52,6 +52,7 @@ export default function StudentDashboard() {
   const {
     classes,
     lessons: lessonsFlat,
+    enrollments,
     getStudentClasses,
     getClassLessons,
     hasAttendance,
@@ -98,6 +99,39 @@ export default function StudentDashboard() {
     <div className="max-w-7xl mx-auto p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Minhas Aulas</h1>
+      </div>
+
+      {/* Debug Panel - REMOVER APÓS CORREÇÃO */}
+      <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+        <h3 className="font-bold text-yellow-900 mb-2">🔍 Debug Info (remover depois):</h3>
+        <div className="text-sm space-y-1 text-yellow-800">
+          <p><strong>Seu ID:</strong> {user?.id}</p>
+          <p><strong>Total de turmas no sistema:</strong> {classes?.length || 0}</p>
+          <p><strong>Total de aulas no sistema:</strong> {lessonsFlat?.length || 0}</p>
+          <p><strong>Total de matrículas no sistema:</strong> {enrollments?.length || 0}</p>
+          <p><strong>Suas matrículas:</strong> {enrollments?.filter((e: any) => e.studentId === user?.id).length || 0}</p>
+          <div className="mt-2 p-2 bg-white rounded border border-yellow-400">
+            <p className="font-semibold mb-1">Detalhes das matrículas:</p>
+            {enrollments?.filter((e: any) => e.studentId === user?.id).map((e: any) => {
+              const classInfo = classes?.find((c: any) => c.id === e.classId);
+              return (
+                <p key={e.id} className="ml-2">- Turma ID: {e.classId} | Nome: {classInfo?.name || 'NÃO ENCONTRADA'}</p>
+              );
+            })}
+          </div>
+          <p className="mt-2"><strong>Total de turmas encontradas por getStudentClasses:</strong> {studentClasses.length}</p>
+          <p><strong>Turmas retornadas:</strong> {studentClasses.map((c: any) => c.name).join(', ') || 'Nenhuma'}</p>
+          <p><strong>Total de aulas disponíveis (candidateLessons):</strong> {candidateLessons.length}</p>
+          <div className="mt-2 p-2 bg-white rounded border border-yellow-400">
+            <p className="font-semibold mb-1">Aulas por turma:</p>
+            {studentClasses.map((c: any) => {
+              const classLessons = getClassLessons(c.id) || [];
+              return (
+                <p key={c.id} className="ml-2">- <strong>{c.name}:</strong> {classLessons.length} aulas ({classLessons.map((l: any) => l.title).join(', ')})</p>
+              );
+            })}
+          </div>
+        </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <input aria-label="Buscar aulas" type="text" placeholder="Buscar por título..." className="px-3 py-2 border rounded-lg flex-1" value={filterText} onChange={(e) => setFilterText(e.target.value)} />
