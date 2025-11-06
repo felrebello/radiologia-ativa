@@ -391,7 +391,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const getStudentClasses = (studentId: string) => {
     const studentEnrollments = enrollments.filter(e => e.studentId === studentId);
-    return classes.filter(c => studentEnrollments.some(e => e.classId === c.id));
+    console.log('=== DEBUG getStudentClasses ===');
+    console.log('Student ID:', studentId);
+    console.log('All enrollments:', enrollments);
+    console.log('Student enrollments:', studentEnrollments);
+    console.log('All classes:', classes);
+    const result = classes.filter(c => studentEnrollments.some(e => e.classId === c.id));
+    console.log('Filtered classes:', result);
+    console.log('===============================');
+    return result;
   };
 
   const getClassLessons = (classId: string) => lessons.filter(l => l.classId === classId);

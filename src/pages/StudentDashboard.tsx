@@ -67,13 +67,25 @@ export default function StudentDashboard() {
   const [filterDate, setFilterDate] = useState('');
 
   const studentClasses = user ? getStudentClasses(user.id) : [];
-  const candidateLessons = studentClasses.flatMap((c: any) =>
-    (getClassLessons(c.id) || []).map((l: any) => ({
+
+  // Debug: verificar matrículas
+  console.log('=== DEBUG StudentDashboard ===');
+  console.log('User ID:', user?.id);
+  console.log('Student Classes:', studentClasses);
+  console.log('Total classes:', studentClasses.length);
+
+  const candidateLessons = studentClasses.flatMap((c: any) => {
+    const classLessons = getClassLessons(c.id) || [];
+    console.log(`Lessons for class ${c.name} (${c.id}):`, classLessons.length);
+    return classLessons.map((l: any) => ({
       ...l,
       className: c.name,
       date: toDateSafe(l.date)
-    }))
-  );
+    }));
+  });
+
+  console.log('Total candidate lessons:', candidateLessons.length);
+  console.log('==============================');
 
   const upcomingLessons = candidateLessons.sort((a, b) => a.date.getTime() - b.date.getTime());
   const filteredLessons = upcomingLessons.filter(lesson => {
