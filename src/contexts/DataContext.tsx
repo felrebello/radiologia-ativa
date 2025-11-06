@@ -145,12 +145,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const loadEnrollments = async () => {
     try {
-      const q = query(collection(db, 'enrollments'), orderBy('enrolledAt', 'desc'));
+      // REMOVIDO orderBy temporariamente para capturar TODAS as matrículas
+      const q = query(collection(db, 'enrollments'));
       const querySnapshot = await getDocs(q);
       console.log('🔍 loadEnrollments - Total de documentos retornados:', querySnapshot.docs.length);
       const enrollmentList: Enrollment[] = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('🔍 Enrollment doc:', { id: doc.id, studentId: data.studentId, classId: data.classId });
+        console.log('🔍 Enrollment doc:', { id: doc.id, studentId: data.studentId, classId: data.classId, enrolledAt: data.enrolledAt });
         return { id: doc.id, ...data, enrolledAt: convertTimestamp(data.enrolledAt) } as Enrollment;
       });
       console.log('🔍 Total enrollments processados:', enrollmentList.length);
@@ -217,13 +218,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.error('Erro ao escutar aulas:', error);
       });
 
-      // Listener em tempo real para matrículas
-      const enrollmentsQuery = query(collection(db, 'enrollments'), orderBy('enrolledAt', 'desc'));
+      // Listener em tempo real para matrículas (SEM orderBy para capturar todos)
+      const enrollmentsQuery = query(collection(db, 'enrollments'));
       const unsubscribeEnrollments = onSnapshot(enrollmentsQuery, (querySnapshot) => {
         console.log('🔊 Listener enrollments - Total de documentos:', querySnapshot.docs.length);
         const enrollmentList: Enrollment[] = querySnapshot.docs.map(doc => {
           const data = doc.data();
-          console.log('🔊 Enrollment listener doc:', { id: doc.id, studentId: data.studentId, classId: data.classId });
+          console.log('🔊 Enrollment listener doc:', { id: doc.id, studentId: data.studentId, classId: data.classId, enrolledAt: data.enrolledAt });
           return {
             id: doc.id,
             ...data,
