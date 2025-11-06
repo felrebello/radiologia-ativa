@@ -147,9 +147,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const q = query(collection(db, 'enrollments'), orderBy('enrolledAt', 'desc'));
       const querySnapshot = await getDocs(q);
-      const enrollmentList: Enrollment[] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), enrolledAt: convertTimestamp(doc.data().enrolledAt) } as Enrollment));
+      console.log('🔍 loadEnrollments - Total de documentos retornados:', querySnapshot.docs.length);
+      const enrollmentList: Enrollment[] = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('🔍 Enrollment doc:', { id: doc.id, studentId: data.studentId, classId: data.classId });
+        return { id: doc.id, ...data, enrolledAt: convertTimestamp(data.enrolledAt) } as Enrollment;
+      });
+      console.log('🔍 Total enrollments processados:', enrollmentList.length);
       setEnrollments(enrollmentList);
-    } catch (error) { console.error('Erro ao carregar matrículas:', error); }
+    } catch (error) {
+      console.error('❌ ERRO ao carregar matrículas:', error);
+      console.error('❌ Detalhes do erro:', JSON.stringify(error, null, 2));
+    }
   };
 
   const loadRatings = async () => {
@@ -211,14 +220,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // Listener em tempo real para matrículas
       const enrollmentsQuery = query(collection(db, 'enrollments'), orderBy('enrolledAt', 'desc'));
       const unsubscribeEnrollments = onSnapshot(enrollmentsQuery, (querySnapshot) => {
-        const enrollmentList: Enrollment[] = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          enrolledAt: convertTimestamp(doc.data().enrolledAt)
-        } as Enrollment));
+        console.log('🔊 Listener enrollments - Total de documentos:', querySnapshot.docs.length);
+        const enrollmentList: Enrollment[] = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('🔊 Enrollment listener doc:', { id: doc.id, studentId: data.studentId, classId: data.classId });
+          return {
+            id: doc.id,
+            ...data,
+            enrolledAt: convertTimestamp(data.enrolledAt)
+          } as Enrollment;
+        });
+        console.log('🔊 Total enrollments no listener:', enrollmentList.length);
         setEnrollments(enrollmentList);
       }, (error) => {
-        console.error('Erro ao escutar matrículas:', error);
+        console.error('❌ ERRO no listener de matrículas:', error);
+        console.error('❌ Detalhes do erro:', JSON.stringify(error, null, 2));
       });
 
       // Listener em tempo real para presenças
